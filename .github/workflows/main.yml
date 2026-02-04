@@ -27,7 +27,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu' # تم تغيير التوزيع لزيادة الاستقرار
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Install Dependencies
@@ -39,18 +39,21 @@ jobs:
       - name: Setup Capacitor & Android
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          # نستخدم npx cap sync للتأكد من تحديث كافة المجلدات
-          npx cap init PrayerApp com.prayer.times --web-dir=dist || true
-          npx cap add android || true
+          # محاولة تهيئة الكاباسيتور مع معالجة وجود ملفات قديمة
+          npx cap init PrayerApp com.prayer.times --web-dir=dist || echo "Already initialized"
+          npx cap add android || echo "Android already added"
           npx cap sync android
 
       - name: Build APK
+        # هنا الحل: تعطيل الـ Daemon وزيادة الذاكرة لتجنب خطأ الـ Jar
+        env:
+          _JAVA_OPTIONS: "-Xmx2g"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
         run: |
           cd android
           chmod +x gradlew
-          # أضفنا أمر clean لحل مشكلة الـ Jar file
           ./gradlew clean
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-name: Build APK from ZIP
+name: Build APK from ZIP - Final Fix
 
 on:
   push:
@@ -18,8 +18,8 @@ jobs:
           sudo apt-get install unzip
           unzip project.zip -d ./
           rm project.zip
-          # حذف أي مجلدات أندرويد أو نود قديمة قد تكون داخل الـ ZIP لتجنب التعارض
-          rm -rf android node_modules dist
+          # حذف أي مجلدات قديمة كانت في الـ ZIP لتجنب التعارض
+          rm -rf android node_modules dist .gradle
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,16 +45,12 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Build APK
-        # الحل الجديد: تغيير مسار Gradle بالكامل لتجنب مشاكل الصلاحيات
-        env:
-          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+      - name: Build APK (Fixing bcprov error)
+        # الحل الجذري لمشكلة الـ Jar هو تعطيل الـ VFS ومراقبة الملفات
         run: |
           cd android
           chmod +x gradlew
-          # تشغيل البناء مع مسح الذاكرة المؤقتة وإيقاف الـ Daemon تماماً
-          ./gradlew clean
-          ./gradlew assembleDebug --no-daemon --stacktrace -Dorg.gradle.vfs.watch=false
+          ./gradlew assembleDebug --no-daemon -Dorg.gradle.vfs.watch=false -Dorg.gradle.project.kotlin.compiler.execution.strategy="in-process"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

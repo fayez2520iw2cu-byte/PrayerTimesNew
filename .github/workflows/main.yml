@@ -18,6 +18,8 @@ jobs:
           sudo apt-get install unzip
           unzip project.zip -d ./
           rm project.zip
+          # حذف أي مجلدات أندرويد أو نود قديمة قد تكون داخل الـ ZIP لتجنب التعارض
+          rm -rf android node_modules dist
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,21 +41,20 @@ jobs:
       - name: Setup Capacitor & Android
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          # محاولة تهيئة الكاباسيتور مع معالجة وجود ملفات قديمة
-          npx cap init PrayerApp com.prayer.times --web-dir=dist || echo "Already initialized"
-          npx cap add android || echo "Android already added"
+          npx cap init PrayerApp com.prayer.times --web-dir=dist
+          npx cap add android
           npx cap sync android
 
       - name: Build APK
-        # هنا الحل: تعطيل الـ Daemon وزيادة الذاكرة لتجنب خطأ الـ Jar
+        # الحل الجديد: تغيير مسار Gradle بالكامل لتجنب مشاكل الصلاحيات
         env:
-          _JAVA_OPTIONS: "-Xmx2g"
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
         run: |
           cd android
           chmod +x gradlew
+          # تشغيل البناء مع مسح الذاكرة المؤقتة وإيقاف الـ Daemon تماماً
           ./gradlew clean
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace -Dorg.gradle.vfs.watch=false
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
